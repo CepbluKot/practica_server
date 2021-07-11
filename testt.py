@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS, cross_origin
 import json
-
+import serial
 app = Flask(__name__,static_url_path='')
 
 CORS(app)
@@ -29,16 +29,38 @@ Com_port_json = {
 115200
 ]
 } 
+connect_data = {"port":0, "speed":0}
 
-@app.route("/", methods = ["GET", "POST"])
-def json_test():
+@app.route("/connect", methods = ["GET", "POST"])
+def connect():
     
-    sost = 1
-
+    
     if request.method == 'POST':
         
         value = request.json
+        print(value)
+        speed = "0"
+        port = "0"
+        parse_data = json.loads(json.dumps(value))
+        if "port" in parse_data:
+
+            connect_data["port"] = parse_data["port"]
+        if "speed" in parse_data:
+            
+            connect_data["speed"] = parse_data["speed"]
         
+        return jsonify(value)
+
+
+
+@app.route("/", methods = ["GET", "POST"])
+def json_test():
+    ser  = serial.Serial(connect_data["port"], baudrate=connect_data["speed"])
+    if request.method == 'POST':
+        
+        value = request.json
+        print(value)
+
         parse_data = json.loads(json.dumps(value))
         
         print(value)
