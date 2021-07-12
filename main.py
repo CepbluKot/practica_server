@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 import json
 import serial
 import threading
@@ -25,8 +25,9 @@ Btn = Button(window, text = "Открыть веб-интерфейс",command=o
 Btn.pack()
 
 app = Flask(__name__,static_url_path='')
-
 CORS(app)
+
+cors = CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})
 
 Com_port_json = {
    "com_devices":[
@@ -71,47 +72,53 @@ Com_port_json = {
 } 
 connect_data = {"port":0, "speed":0}
 
+terminal_chat = [
+    {
+        "id":1,
+        "type": "device",
+        "name":"COM1 device",
+        "message":"Waiting for command..."
+    },
+    {
+        "id":2,
+        "type": "user",
+        "name":"admin",
+        "message":"set btn1 action wake"
+    },
+    {
+        "id":3,
+        "type": "device",
+        "name":"COM1 device",
+        "message":"success"
+    },
+]
+
+@app.route("/terminal/echo", methods = ["GET"])
+def echo_terminal_chat():
+    return jsonify(terminal_chat)
+
 @app.route("/checkworking", methods = ["GET"])
 def checkworking():
     checkworking = {"server_working": "tru"}
     return jsonify(checkworking)
 
-@app.route("/connect", methods = ["GET", "POST"])
+@app.route("/com/connect", methods = ["GET", "POST"])
 def connect():
     
-    
+    print("lol")
     if request.method == 'POST':
         
         value = request.json
         print(value)
-        speed = "0"
-        port = "0"
-        parse_data = json.loads(json.dumps(value))
-        if "port" in parse_data:
-
-            connect_data["port"] = parse_data["port"]
-        if "speed" in parse_data:
             
-            connect_data["speed"] = parse_data["speed"]
-        
         return jsonify(value)
 
 
 
 @app.route("/", methods = ["GET", "POST"])
 def json_test():
-    ser  = serial.Serial(connect_data["port"], baudrate=connect_data["speed"])
-    if request.method == 'POST':
-        
-        value = request.json
-        print(value)
-
-        parse_data = json.loads(json.dumps(value))
-        
-        print(value)
-        
-        
-        return jsonify(value)
+    print(jsonify(request.json))
+    return jsonify(request.json)
 
 @app.route("/com/show", methods = ["GET", "POST"])
 def func():
