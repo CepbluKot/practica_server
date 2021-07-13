@@ -61,7 +61,6 @@ for port, desc, hwid in sorted(ports):
         Com_port_json["com_devices"].append( { "id":n, "port":port, "name":port + "/"+ desc}) 
         n+=1
 
-print(Com_port_json)
 connect_data = {"port":0, "speed":0}
 
 terminal_chat = [
