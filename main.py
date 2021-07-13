@@ -4,6 +4,9 @@ import json
 import serial
 import threading
 import os
+import serial.tools.list_ports
+
+
 
 from tkinter import *
 from tkinter import ttk
@@ -13,10 +16,13 @@ window = Tk()
 window.title("Умная дача СКБ-4 > веб-интерфейс > сервер")
 window.geometry('400x250')
 imgicon = PhotoImage(file=os.path.join(os.path.realpath('icon.png')))
+#imgicon = PhotoImage("")
 window.tk.call('wm', 'iconphoto', window._w, imgicon)
 
 new = 1
-url = "http://localhost:8080"
+url = "http://localhost:5000"
+
+ports = serial.tools.list_ports.comports()
 
 def openweb():
     webbrowser.open(url,new=new)
@@ -27,31 +33,10 @@ Btn.pack()
 app = Flask(__name__,static_url_path='')
 CORS(app)
 
-cors = CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})
+cors = CORS(app, resources={r"/*": {"origins": "http://localhost:5000"}})
 
 Com_port_json = {
-   "com_devices":[
-      {
-         "id":1,
-         "port":"COM1",
-         "name":"COM1 Arduino/Genuino Uno R3"
-      },
-      {
-         "id":2,
-         "port":"COM2",
-         "name":"COM2"
-      },
-      {
-         "id":3,
-         "port":"COM3",
-         "name":"COM3 Arduino Leonardo"
-      },
-      {
-         "id":4,
-         "port":"COM4",
-         "name":"COM4 Generic USB mouse"
-      }
-   ],
+   "com_devices":[],
 
 "com_speed":[
     50,
@@ -69,7 +54,14 @@ Com_port_json = {
     57600,
     115200
 ]
-} 
+}
+#looking for devices
+n = 0
+for port, desc, hwid in sorted(ports):
+        Com_port_json["com_devices"].append( { "id":n, "port":port, "name":port + "/"+ desc}) 
+        n+=1
+
+print(Com_port_json)
 connect_data = {"port":0, "speed":0}
 
 terminal_chat = [
