@@ -5,6 +5,7 @@ import serial
 import threading
 import os
 import serial.tools.list_ports
+import time
 
 
 
@@ -114,6 +115,47 @@ def json_test():
 @app.route("/com/show", methods = ["GET", "POST"])
 def func():
     return jsonify(Com_port_json)
+
+@app.route("/connect_data", methods = ["POST"])
+def connect_data_func():
+    if request.method == 'POST':
+        value = request.json
+        parse_data = json.loads(json.dumps(value))
+        if "port" in parse_data:
+
+            connect_data["port"] = parse_data["port"]
+        if "speed" in parse_data:
+            
+            connect_data["speed"] = parse_data["speed"]
+        
+        return jsonify(connect_data)
+
+
+@app.route("/datalink", methods = ["GET", "POST"])
+def datalink():
+    
+    print(connect_data["port"], " ", connect_data["speed"])
+    ser  = serial.Serial(port = connect_data["port"], baudrate=connect_data["speed"])
+    ser.write(b'\n')
+    time.sleep(3)
+    
+    if request.method == 'POST':
+        value = request.json
+        parse_data = json.loads(json.dumps(value))
+        
+        if "cmd" in parse_data:
+            ser.write(bytes(parse_data["cmd"].encode()) + b'\r\n')
+        
+        time.sleep(1)
+        recieved = ""
+        while ser.inWaiting() > 0:
+            line = ser.readline()
+            if line:
+
+                recieved += line.decode().strip()
+
+        
+        return jsonify(recieved)
 
 
 @app.errorhandler(500)
