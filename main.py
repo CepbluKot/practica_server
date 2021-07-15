@@ -128,6 +128,7 @@ def connect_data_func():
             
             connect_data["speed"] = parse_data["speed"]
         
+        
         return jsonify(connect_data)
 
 
@@ -136,24 +137,33 @@ def datalink():
     
     print(connect_data["port"], " ", connect_data["speed"])
     ser  = serial.Serial(port = connect_data["port"], baudrate=connect_data["speed"])
-    ser.write(b'\n')
-    time.sleep(3)
+    
+    time.sleep(1.5)
     
     if request.method == 'POST':
         value = request.json
         parse_data = json.loads(json.dumps(value))
         
         if "cmd" in parse_data:
-            ser.write(bytes(parse_data["cmd"].encode()) + b'\r\n')
+            ser.write(bytes(parse_data["cmd"].encode()) )
         
-        time.sleep(1)
         recieved = ""
-        while ser.inWaiting() > 0:
-            line = ser.readline()
-            if line:
+        
+        
+        
+            
 
-                recieved += line.decode().strip()
-
+        
+        arduino_data = ser.readline()
+        decoded_values = str(arduino_data[0:len(arduino_data)-2].decode("utf-8"))
+        print(arduino_data)
+        
+        if arduino_data:
+                
+            recieved += decoded_values
+                
+            print(recieved)
+            
         
         return jsonify(recieved)
 
