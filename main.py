@@ -127,8 +127,10 @@ def connect_data_func():
         if "speed" in parse_data:
             
             connect_data["speed"] = parse_data["speed"]
-        
-        
+        if connect_data["port"] != 0 and connect_data["speed"] != 0:
+            global ser
+            ser  = serial.Serial(port = connect_data["port"], baudrate=connect_data["speed"])
+    
         return jsonify(connect_data)
 
 
@@ -136,9 +138,8 @@ def connect_data_func():
 def datalink():
     
     print(connect_data["port"], " ", connect_data["speed"])
-    ser  = serial.Serial(port = connect_data["port"], baudrate=connect_data["speed"])
     
-    time.sleep(1.5)
+    
     
     if request.method == 'POST':
         value = request.json
