@@ -5,13 +5,16 @@ import serial
 import threading
 import os
 import serial.tools.list_ports
-import time
-
-
 
 from tkinter import *
-from tkinter import ttk
 import webbrowser
+import netifaces as ni
+
+
+currPort = 5000
+ni.ifaddresses('en0')
+ip = ni.ifaddresses('en0')[ni.AF_INET][0]['addr']
+
 
 window = Tk()
 window.title("Умная дача СКБ-4 > веб-интерфейс > сервер")
@@ -19,104 +22,117 @@ window.geometry('400x250')
 imgicon = PhotoImage(file=os.path.join(os.path.realpath('icon.png')))
 #imgicon = PhotoImage("")
 window.tk.call('wm', 'iconphoto', window._w, imgicon)
+text = Text(width=50, height=10)
+text.pack()
+text.insert(0.5, str(ip) + ':' + str(currPort))
+text.tag_add('title', 1.0, '1.end')
+text.tag_config('title', justify=CENTER,
+                font=("Verdana", 24, 'bold'))
 
 new = 1
 url = "http://localhost:5000"
 
 ports = serial.tools.list_ports.comports()
 
-def openweb():
-    webbrowser.open(url,new=new)
 
-Btn = Button(window, text = "Открыть веб-интерфейс",command=openweb)
+def openweb():
+    webbrowser.open(url, new=new)
+
+
+Btn = Button(window, text="Открыть веб-интерфейс", command=openweb)
 Btn.pack()
 
-app = Flask(__name__,static_url_path='')
+app = Flask(__name__, static_url_path='')
 CORS(app)
 
 cors = CORS(app, resources={r"/*": {"origins": "http://localhost:5000"}})
 
 Com_port_json = {
-   "com_devices":[],
+    "com_devices": [],
 
-"com_speed":[
-    50,
-    75,
-    110,
-    150,
-    300,
-    600,
-    1200,
-    2400,
-    4800,
-    9600,
-    19200,
-    38400,
-    57600,
-    115200
-]
+    "com_speed": [
+        50,
+        75,
+        110,
+        150,
+        300,
+        600,
+        1200,
+        2400,
+        4800,
+        9600,
+        19200,
+        38400,
+        57600,
+        115200
+    ]
 }
-#looking for devices
+# looking for devices
 n = 0
 for port, desc, hwid in sorted(ports):
-        Com_port_json["com_devices"].append( { "id":n, "port":port, "name":port + "/"+ desc}) 
-        n+=1
+    Com_port_json["com_devices"].append(
+        {"id": n, "port": port, "name": port + "/" + desc})
+    n += 1
 
-connect_data = {"port":0, "speed":0}
+connect_data = {"port": 0, "speed": 0}
 
 terminal_chat = [
     {
-        "id":1,
+        "id": 1,
         "type": "device",
-        "name":"COM1 device",
-        "message":"Waiting for command..."
+        "name": "COM1 device",
+        "message": "Waiting for command..."
     },
     {
-        "id":2,
+        "id": 2,
         "type": "user",
-        "name":"admin",
-        "message":"set btn1 action wake"
+        "name": "admin",
+        "message": "set btn1 action wake"
     },
     {
-        "id":3,
+        "id": 3,
         "type": "device",
-        "name":"COM1 device",
-        "message":"success"
+        "name": "COM1 device",
+        "message": "success"
     },
 ]
 
-@app.route("/terminal/echo", methods = ["GET"])
+
+@app.route("/terminal/echo", methods=["GET"])
 def echo_terminal_chat():
     return jsonify(terminal_chat)
 
-@app.route("/checkworking", methods = ["GET"])
+
+@app.route("/checkworking", methods=["GET"])
 def checkworking():
     checkworking = {"server_working": "tru"}
     return jsonify(checkworking)
 
-@app.route("/com/connect", methods = ["GET", "POST"])
+
+@app.route("/com/connect", methods=["GET", "POST"])
 def connect():
-    
+
     print("lol")
     if request.method == 'POST':
-        
+
         value = request.json
         print(value)
-            
+
         return jsonify(value)
 
 
-
-@app.route("/", methods = ["GET", "POST"])
+@app.route("/", methods=["GET", "POST"])
 def json_test():
     print(jsonify(request.json))
     return jsonify(request.json)
 
-@app.route("/com/show", methods = ["GET", "POST"])
+
+@app.route("/com/show", methods=["GET", "POST"])
 def func():
     return jsonify(Com_port_json)
 
-@app.route("/connect_data", methods = ["POST"])
+
+@app.route("/connect_data", methods=["POST"])
 def connect_data_func():
     if request.method == 'POST':
         value = request.json
@@ -125,47 +141,40 @@ def connect_data_func():
 
             connect_data["port"] = parse_data["port"]
         if "speed" in parse_data:
-            
+
             connect_data["speed"] = parse_data["speed"]
         if connect_data["port"] != 0 and connect_data["speed"] != 0:
             global ser
-            ser  = serial.Serial(port = connect_data["port"], baudrate=connect_data["speed"])
-    
+            ser = serial.Serial(
+                port=connect_data["port"], baudrate=connect_data["speed"])
+
         return jsonify(connect_data)
 
 
-@app.route("/datalink", methods = ["GET", "POST"])
+@app.route("/datalink", methods=["GET", "POST"])
 def datalink():
-    
+
     print(connect_data["port"], " ", connect_data["speed"])
-    
-    
-    
+
     if request.method == 'POST':
         value = request.json
         parse_data = json.loads(json.dumps(value))
-        
-        if "cmd" in parse_data:
-            ser.write(bytes(parse_data["cmd"].encode()) )
-        
-        recieved = ""
-        
-        
-        
-            
 
-        
+        if "cmd" in parse_data:
+            ser.write(bytes(parse_data["cmd"].encode()))
+
+        recieved = ""
         arduino_data = ser.readline()
-        decoded_values = str(arduino_data[0:len(arduino_data)-2].decode("utf-8"))
+        decoded_values = str(
+            arduino_data[0:len(arduino_data)-2].decode("utf-8"))
         print(arduino_data)
-        
+
         if arduino_data:
-                
+
             recieved += decoded_values
-                
+
             print(recieved)
-            
-        
+
         return jsonify(recieved)
 
 
@@ -174,9 +183,11 @@ def internal_error(error):
 
     return "500 error"
 
+
 @app.errorhandler(404)
 def not_found(error):
     return "404 error"
+
 
 @app.errorhandler(400)
 def not_found(error):
@@ -184,13 +195,15 @@ def not_found(error):
 
 
 def flask_start():
-    app.run('0.0.0.0', port='5000')
+    app.run('0.0.0.0', port=currPort)
+
 
 def tkinter_start():
     window.mainloop()
 
+
 if __name__ == "__main__":
     flt = threading.Thread(target=flask_start)
     flt.daemon = True
-    flt.start() 
-    tkinter_start() 
+    flt.start()
+    tkinter_start()
