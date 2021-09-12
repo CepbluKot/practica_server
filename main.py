@@ -1,8 +1,4 @@
-import webbrowser
-from tkinter import ttk
-from tkinter import *
-import logging
-from flask import Flask, request, jsonify, render_template, templating
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import serial
@@ -10,38 +6,28 @@ import threading
 import os
 import serial.tools.list_ports
 import time
-import netifaces as ni
 
-currPort = 5000
-ni.ifaddresses('en0')
-ip = ni.ifaddresses('en0')[ni.AF_INET][0]['addr']
 
-ser = serial.Serial()
-
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
-
-print('\nСервер настройки индивидуального устройства системы "Умная дача СКБ-4"\n')
+from tkinter import *
+from tkinter import ttk
+import webbrowser
 
 window = Tk()
-window.title("Умная дача СКБ-4")
+window.title("Умная дача СКБ-4 > веб-интерфейс > сервер")
 window.geometry('400x250')
 imgicon = PhotoImage(file=os.path.join(os.path.realpath('icon.png')))
 #imgicon = PhotoImage("")
 window.tk.call('wm', 'iconphoto', window._w, imgicon)
-text = Text(width=50, height=10)
-text.pack()
-text.insert(0.5, str(ip) + ':' + str(currPort))
-text.tag_add('title', 1.0, '1.end')
-text.tag_config('title', justify=CENTER,
-                font=("Verdana", 24, 'bold'))
-
 
 new = 1
 url = "http://localhost:5000"
 
+ports = serial.tools.list_ports.comports()
+
+
 def openweb():
     webbrowser.open(url, new=new)
+
 
 Btn = Button(window, text="Открыть веб-интерфейс", command=openweb)
 Btn.pack()
@@ -49,7 +35,7 @@ Btn.pack()
 app = Flask(__name__, static_url_path='')
 CORS(app)
 
-cors = CORS(app, resources={r"/*": {"origins": "http://localhost:8080"}})
+cors = CORS(app, resources={r"/*": {"origins": "http://localhost:5000"}})
 
 Com_port_json = {
     "com_devices": [],
@@ -71,181 +57,134 @@ Com_port_json = {
         115200
     ]
 }
-# looking for devices
-
-
-def checkComDevices():
-    Com_port_json["com_devices"] = []
-    ports = serial.tools.list_ports.comports()
-    n = 0
-    for port, desc, hwid in sorted(ports):
-        Com_port_json["com_devices"].append(
-            {"id": n, "port": port, "name": port + "/" + desc})
-        n += 1
-
+#looking for devices
+n = 0
+for port, desc, hwid in sorted(ports):
+    Com_port_json["com_devices"].append(
+        {"id": n, "port": port, "name": port + "/" + desc})
+    n += 1
 
 connect_data = {"port": 0, "speed": 0}
 
-check = {}
+terminal_chat = [
+    {
+        "id": 1,
+        "type": "device",
+        "name": "COM1 device",
+        "message": "Waiting for command..."
+    },
+    {
+        "id": 2,
+        "type": "user",
+        "name": "admin",
+        "message": "set btn1 action wake"
+    },
+    {
+        "id": 3,
+        "type": "device",
+        "name": "COM1 device",
+        "message": "success"
+    },
+]
 
-deviceConnected = False
 
-terminal = {"chat": []}
+@app.route("/terminal/echo", methods=["GET"])
+def echo_terminal_chat():
+    return jsonify(terminal_chat)
 
 
-@app.route("/check", methods=["GET"])
+@app.route("/checkworking", methods=["GET"])
 def checkworking():
-    check["server_working"] = "true"
-    check["device_port"] = connect_data["port"]
-    global deviceConnected
-
-    '''if ser.is_open:
-        print("device connected")
-    else:
-        print("no connection")'''
-
-    try:
-        ser.write(b' ')
-        ser.read(1)
-        deviceConnected = True
-        #print("connection ok")
-    except:
-        #print("cannot write")
-        deviceConnected = False
-        ser.close()
-
-    check["device_connected"] = "true" if deviceConnected == True else "false"
-
-    return jsonify(check)
+    checkworking = {"server_working": "tru"}
+    return jsonify(checkworking)
 
 
-'''@app.route("/com/connect", methods = ["GET", "POST"])
+@app.route("/com/connect", methods=["GET", "POST"])
 def connect():
-    
+
     print("lol")
     if request.method == 'POST':
-        
+
         value = request.json
         print(value)
-            
-        return jsonify(value)'''
 
-
-def readline(port):
-    message = ""
-    byte = ""
-    while True:
-        byte = port.read()
-        if byte == "\n":
-            break
-        message += str(byte)
-    return message
+        return jsonify(value)
 
 
 @app.route("/", methods=["GET", "POST"])
 def json_test():
-    return render_template("index.html")
+    print(jsonify(request.json))
+    return jsonify(request.json)
 
 
 @app.route("/com/show", methods=["GET", "POST"])
 def func():
-    checkComDevices()
-    # print(Com_port_json)
     return jsonify(Com_port_json)
 
 
-@app.route("/com/connect", methods=["GET", "POST"])
+@app.route("/connect_data", methods=["POST"])
 def connect_data_func():
-    value = request.json
-    global deviceConnected
-
     if request.method == 'POST':
         value = request.json
-        connect_data["reply"] = "success"
-
         parse_data = json.loads(json.dumps(value))
         if "port" in parse_data:
+
             connect_data["port"] = parse_data["port"]
         if "speed" in parse_data:
+
             connect_data["speed"] = parse_data["speed"]
+        if connect_data["port"] != 0 and connect_data["speed"] != 0:
+            global ser
+            ser = serial.Serial(
+                port=connect_data["port"], baudrate=connect_data["speed"])
 
-    try:
-        ser.baudrate = connect_data["speed"]
-        ser.port = connect_data["port"]
-        ser.timeout = 1
-        ser.open()
-        time.sleep(1)
-        #print('-- Successfully connected')
-        deviceConnected = True
-    except Exception:
-        #print('-- Error: Could not connect')
-        deviceConnected = False
-
-    return jsonify(connect_data)
+        return jsonify(connect_data)
 
 
-@app.route("/com/disconnect", methods=["POST"])
-def comDisconnect():
-    value = request.json
-    global terminal
-    terminal = {"chat": []}
+@app.route("/datalink", methods=["GET", "POST"])
+def datalink():
+
+    print(connect_data["port"], " ", connect_data["speed"])
 
     if request.method == 'POST':
         value = request.json
-
         parse_data = json.loads(json.dumps(value))
-        if parse_data["command"] == "disconnect":
-            ser.close()
-            #print("closed")
-            return jsonify({"reply": "success"})
-        else:
-            return jsonify({"reply": "error"})
 
+        if "cmd" in parse_data:
+            ser.write(bytes(parse_data["cmd"].encode()))
+            print("to arduino!")
+        recieved = ""
 
-@app.route("/com/send", methods=["GET", "POST"])
-def sendCommand():
-    value = request.json
+        arduino_data = ser.readline()
+        decoded_values = str(
+            arduino_data[0:len(arduino_data)-2].decode("utf-8"))
+        print(arduino_data)
 
-    if request.method == 'POST':
-        value = request.json
+        if arduino_data:
 
-        parse_data = json.loads(json.dumps(value))
-        if "command" in parse_data:
-            terminal["chat"].append(
-                {"message": value["command"], "author": "user"})
+            recieved += decoded_values
 
-    try:
-        for i in range(1, len(value["command"]) + 1):
-            ser.write(value["command"][i-1].encode())
-        #print('-- send')
-    except Exception:
-        #print('-- error')
-        pass
+            print(recieved)
 
-    # ser.flush()
-    import time
-    time.sleep(.1)
-    s = ser.readline()
-    terminal["chat"].append(
-        {"message": str(s.decode("utf-8")), "author": "device"})
-    #print(s)
-
-    return jsonify(terminal)
+        return jsonify(recieved)
 
 
 @app.errorhandler(500)
 def internal_error(error):
-    return jsonify({"error": "500"})
+    print("error 500")
+    return "error 500"
 
 
 @app.errorhandler(404)
 def not_found(error):
-    return jsonify({"error": "404"})
+    print("error 404")
+    return "error 404"
 
 
 @app.errorhandler(400)
 def not_found(error):
-    return jsonify({"error": "400"})
+    print("error 400")
+    return "error 400"
 
 
 def flask_start():
