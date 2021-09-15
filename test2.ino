@@ -1,22 +1,23 @@
+#include <Wire.h> // библиотека для управления устройствами по I2C 
+#include <LiquidCrystal_I2C.h> // подключаем библиотеку для QAPASS 1602
+
+LiquidCrystal_I2C LCD(0x27,16,2); // присваиваем имя LCD для дисплея
+
 void setup() {
- Serial.begin(9600);
+   LCD.init(); // инициализация LCD дисплея
+   LCD.backlight(); // включение подсветки дисплея
+   
+   
 }
 
 void loop() {
-
- while (Serial.available() > 0)
+  String trigger;
+  while (Serial.available() > 0)
  {
-  int namba;
-  
+  LCD.setCursor(1, 0);
   String trigger = (Serial.readString());
-  if(trigger == "1"){
-    digitalWrite(8, 1);
-    Serial.println("Turn on!");
-    }
-  else if(trigger == "0"){
-    digitalWrite(8, 0);
-    Serial.println("Turn off!");
-    }
+  
+  Serial.println("Done!");
   }
- 
+   LCD.print(trigger);
 }
